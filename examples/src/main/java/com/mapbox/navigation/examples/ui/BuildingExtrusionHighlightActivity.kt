@@ -3,49 +3,62 @@ package com.mapbox.navigation.examples.ui
 import android.graphics.Color
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import com.mapbox.api.directions.v5.models.BannerInstructions
 import com.mapbox.api.directions.v5.models.DirectionsRoute
 import com.mapbox.mapboxsdk.camera.CameraPosition
+import com.mapbox.mapboxsdk.camera.CameraUpdateFactory
 import com.mapbox.mapboxsdk.geometry.LatLng
 import com.mapbox.mapboxsdk.location.modes.RenderMode
 import com.mapbox.mapboxsdk.maps.MapboxMap
+import com.mapbox.mapboxsdk.style.expressions.Expression
+import com.mapbox.mapboxsdk.style.layers.FillExtrusionLayer
+import com.mapbox.mapboxsdk.style.layers.Property
+import com.mapbox.mapboxsdk.style.layers.PropertyFactory
+import com.mapbox.mapboxsdk.style.sources.VectorSource
+import com.mapbox.navigation.base.trip.model.RouteLegProgress
 import com.mapbox.navigation.base.trip.model.RouteProgress
-import com.mapbox.navigation.core.trip.session.RouteProgressObserver
+import com.mapbox.navigation.core.MapboxNavigation
+import com.mapbox.navigation.core.arrival.ArrivalObserver
 import com.mapbox.navigation.examples.R
 import com.mapbox.navigation.examples.utils.Utils
 import com.mapbox.navigation.ui.NavigationViewOptions
 import com.mapbox.navigation.ui.OnNavigationReadyCallback
-import com.mapbox.navigation.ui.internal.building.BuildingExtrusionLayer
+import com.mapbox.navigation.ui.internal.building.BuildingExtrusionHighlightLayer
+import com.mapbox.navigation.ui.internal.building.BuildingFootprintHighlightLayer
+import com.mapbox.navigation.ui.listeners.BannerInstructionsListener
 import com.mapbox.navigation.ui.listeners.NavigationListener
 import com.mapbox.navigation.ui.map.NavigationMapboxMap
 import com.mapbox.navigation.utils.internal.ifNonNull
-import kotlinx.android.synthetic.main.activity_building_extrusion.*
+import kotlinx.android.synthetic.main.activity_final_destination_arrival_building_highlight.*
 
 /**
  * This activity shows how to use the Navigation UI SDK's
- * [BuildingExtrusionLayer] to show and customize 3D building
+ * [BuildingExtrusionHighlightLayer] to show and customize 3D building
  * extrusions on the [com.mapbox.navigation.ui.NavigationView]'s map.
  */
-class BuildingExtrusionActivity : AppCompatActivity(), OnNavigationReadyCallback,
-    NavigationListener,
-    RouteProgressObserver {
+class BuildingExtrusionHighlightActivity  : AppCompatActivity(), OnNavigationReadyCallback,
+        NavigationListener,
+        BannerInstructionsListener, ArrivalObserver {
 
     private lateinit var mapboxMap: MapboxMap
     private lateinit var navigationMapboxMap: NavigationMapboxMap
-    private lateinit var buildingExtrusionLayer: BuildingExtrusionLayer
+    private lateinit var mapboxNavigation: MapboxNavigation
     private var colorList = listOf(Color.BLUE, Color.MAGENTA, Color.parseColor("#32a88f"))
     private var opacityList = listOf(.5f, .2f, .8f)
-    private var adjustExtrusionsStyleButtonIndex = 0
     private val route by lazy { getDirectionsRoute() }
+    private var adjustHighlightStyleButtonIndex = 0
+    private val highlightQueryLatLng = LatLng(37.79115, -122.41376)
+    private lateinit var buildingExtrusionHighlightLayer: BuildingExtrusionHighlightLayer
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_building_extrusion)
+        setContentView(R.layout.activity_final_destination_arrival_building_highlight)
 
         navigationView.onCreate(savedInstanceState)
         navigationView.initialize(
-            this,
-            getInitialCameraPosition(),
-            Utils.getMapboxAccessToken(this)
+                this,
+                getInitialCameraPosition(),
+                Utils.getMapboxAccessToken(this)
         )
     }
 
@@ -99,51 +112,103 @@ class BuildingExtrusionActivity : AppCompatActivity(), OnNavigationReadyCallback
     override fun onNavigationReady(isRunning: Boolean) {
         if (!isRunning && !::navigationMapboxMap.isInitialized) {
             ifNonNull(navigationView.retrieveNavigationMapboxMap()) { navMapboxMap ->
+
                 this.navigationMapboxMap = navMapboxMap
-
                 this.navigationMapboxMap.updateLocationLayerRenderMode(RenderMode.NORMAL)
-
                 this.mapboxMap = navMapboxMap.retrieveMap()
+                navigationView.retrieveMapboxNavigation()?.let { this.mapboxNavigation = it }
 
                 val optionsBuilder = NavigationViewOptions.builder(this)
                 optionsBuilder.navigationListener(this)
+
+                // Pass the ArrivalObserver interface (this activity)
+                optionsBuilder.arrivalObserver(this)
+
                 optionsBuilder.directionsRoute(route)
                 optionsBuilder.shouldSimulateRoute(true)
-                optionsBuilder.routeProgressObserver(this)
+                optionsBuilder.bannerInstructionsListener(this)
                 navigationView.startNavigation(optionsBuilder.build())
 
-                // Initialize the Navigation UI SDK's BuildingExtrusionLayer class.
-                buildingExtrusionLayer =
-                    BuildingExtrusionLayer(
-                        mapboxMap
-                    )
+                // Initialize the Nav UI SDK's BuildingFootprintHighlightLayer class.
+                buildingExtrusionHighlightLayer = BuildingExtrusionHighlightLayer(mapboxMap)
 
-                // Show the extrusions
-                buildingExtrusionLayer.updateVisibility(true)
-
-                // Initialize the floating action button click listeners
-                adjust_building_extrusion_visibility_fab.setOnClickListener {
-                    buildingExtrusionLayer.updateVisibility(!buildingExtrusionLayer.visibility)
-                }
-
-                adjust_building_extrusion_color_and_opacity_fab.setOnClickListener {
-                    if (adjustExtrusionsStyleButtonIndex == opacityList.size) {
-                        adjustExtrusionsStyleButtonIndex = 0
+                // Set the Floating Action Buttons to adjust
+                adjust_highlight_color_and_opacity_fab.show()
+                adjust_highlight_color_and_opacity_fab.setOnClickListener {
+                    if (adjustHighlightStyleButtonIndex == opacityList.size) {
+                        adjustHighlightStyleButtonIndex = 0
                     }
-                    buildingExtrusionLayer.opacity = opacityList[adjustExtrusionsStyleButtonIndex]
-                    buildingExtrusionLayer.color = colorList[adjustExtrusionsStyleButtonIndex]
-                    adjustExtrusionsStyleButtonIndex++
+                    buildingExtrusionHighlightLayer.opacity = opacityList[adjustHighlightStyleButtonIndex]
+                    buildingExtrusionHighlightLayer.color = colorList[adjustHighlightStyleButtonIndex]
+                    adjustHighlightStyleButtonIndex++
+                }
+                adjust_visibility_fab.show()
+                adjust_visibility_fab.setOnClickListener {
+                    mapboxMap.getStyle {
+                        val currentlyVisible = it.getLayer(BuildingExtrusionHighlightLayer.BUILDING_HIGHLIGHTED_EXTRUSION_LAYER_ID)
+                                ?.visibility?.value.equals(Property.VISIBLE)
+                        buildingExtrusionHighlightLayer.updateVisibility(!currentlyVisible)
+                    }
                 }
             }
         }
     }
 
-    override fun onRouteProgressChanged(routeProgress: RouteProgress) {
-        // todo
+    override fun willDisplay(instructions: BannerInstructions?): BannerInstructions {
+        return instructions!!
+    }
+
+    override fun onNextRouteLegStart(routeLegProgress: RouteLegProgress) {
+        // Not needed in this example
+    }
+
+    override fun onFinalDestinationArrival(routeProgress: RouteProgress) {
+        mapboxMap.easeCamera(CameraUpdateFactory.zoomTo(18.0), 1800)
+
+        mapboxMap.getStyle {
+
+            val buildingFootprintVectorSource = VectorSource(
+                    "VEC_SOURCE_ID", "mapbox://mapbox.mapbox-streets-v8")
+            it.addSource(buildingFootprintVectorSource)
+
+            val fillLayer = FillExtrusionLayer("fill-building-test","VEC_SOURCE_ID")
+            fillLayer.sourceLayer = "building"
+//            fillLayer.setFilter(getFilterExpression(queryLatLng))
+            fillLayer.withProperties(
+                    PropertyFactory.fillExtrusionColor(Color.BLUE),
+                    PropertyFactory.fillExtrusionOpacity(.7f),
+                    PropertyFactory.fillExtrusionHeight(Expression.get("height"))
+            )
+            it.addLayer(fillLayer)
+
+            /**
+             * Set the [LatLng] to be used by the [BuildingFootprintHighlightLayer].
+             * The footprint or extrusion that's shown is whatever is a maximum of 1 meter
+             * away from the query [LatLng].
+             *
+             * The LatLng passed through below is different than the coordinate used as the
+             * final destination coordinate in this example's [DirectionsRoute].
+             *
+             * This LatLng should be set before the visibility of either the extrusion
+             * or footprint is set to true.
+             */
+            buildingExtrusionHighlightLayer.queryLatLng = highlightQueryLatLng
+
+            buildingExtrusionHighlightLayer.updateVisibility(true)
+
+            // Click on a building footprint to move the highlighted footprint
+            mapboxMap.addOnMapClickListener {
+                buildingExtrusionHighlightLayer.queryLatLng = it
+                true
+            }
+
+        }
+
+
     }
 
     override fun onNavigationRunning() {
-        // todo
+        // Not needed in this example
     }
 
     override fun onNavigationFinished() {
@@ -158,9 +223,9 @@ class BuildingExtrusionActivity : AppCompatActivity(), OnNavigationReadyCallback
     private fun getInitialCameraPosition(): CameraPosition {
         val originCoordinate = route.routeOptions()?.coordinates()?.get(0)
         return CameraPosition.Builder()
-            .target(LatLng(originCoordinate!!.latitude(), originCoordinate.longitude()))
-            .zoom(15.0)
-            .build()
+                .target(LatLng(originCoordinate!!.latitude(), originCoordinate.longitude()))
+                .zoom(15.0)
+                .build()
     }
 
     private fun getDirectionsRoute(): DirectionsRoute {
@@ -170,3 +235,4 @@ class BuildingExtrusionActivity : AppCompatActivity(), OnNavigationReadyCallback
         return DirectionsRoute.fromJson(directionsRouteAsJson)
     }
 }
+
