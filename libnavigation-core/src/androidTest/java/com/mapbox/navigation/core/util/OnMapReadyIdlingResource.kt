@@ -11,10 +11,7 @@ import com.mapbox.navigation.core.test.R
 import java.util.concurrent.atomic.AtomicBoolean
 import junit.framework.TestCase.assertNotNull
 
-class OnMapReadyIdlingResource
-constructor(
-        activity: Activity
-) : IdlingResource, OnMapReadyCallback {
+class OnMapReadyIdlingResource(activity: Activity) : IdlingResource, OnMapReadyCallback {
 
     private val isIdling = AtomicBoolean(false)
 

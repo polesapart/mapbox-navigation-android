@@ -6,8 +6,8 @@ import androidx.test.espresso.IdlingResource
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.Until
-import com.mapbox.navigation.core.test.R
 import com.mapbox.navigation.core.activity.ui.TripServiceActivityKt
+import com.mapbox.navigation.core.test.R
 import com.mapbox.navigation.core.util.OnMapReadyIdlingResource
 import com.mapbox.navigation.testing.ui.NotificationTestRule
 import com.schibsted.spain.barista.assertion.BaristaEnabledAssertions.assertEnabled
