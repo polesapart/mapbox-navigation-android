@@ -25,7 +25,7 @@ import kotlinx.coroutines.channels.ReceiveChannel
  * @param terminateLambda called when [TripService] has stopped
  * @param logger interface for logging any events
  */
-class MapboxTripService(
+internal class MapboxTripService(
     private val tripNotification: TripNotification,
     private val initializeLambda: () -> Unit,
     private val terminateLambda: () -> Unit,

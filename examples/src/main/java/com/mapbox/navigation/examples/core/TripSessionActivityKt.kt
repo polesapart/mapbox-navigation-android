@@ -18,8 +18,8 @@ import com.mapbox.navigation.base.internal.extensions.inferDeviceLocale
 import com.mapbox.navigation.base.options.NavigationOptions
 import com.mapbox.navigation.core.Rounding
 import com.mapbox.navigation.core.internal.MapboxDistanceFormatter
-import com.mapbox.navigation.core.internal.trip.service.MapboxTripService
-import com.mapbox.navigation.core.internal.trip.session.MapboxTripSession
+//import com.mapbox.navigation.core.internal.trip.service.MapboxTripService
+//import com.mapbox.navigation.core.internal.trip.session.MapboxTripSession
 import com.mapbox.navigation.core.trip.session.LocationObserver
 import com.mapbox.navigation.examples.R
 import com.mapbox.navigation.trip.notification.internal.MapboxTripNotification
@@ -35,7 +35,7 @@ private const val NAVIGATOR_POLLING_DELAY = 1500L
 class TripSessionActivityKt : AppCompatActivity(), OnMapReadyCallback {
 
     private var mapboxMap: MapboxMap? = null
-    private lateinit var tripSession: MapboxTripSession
+//    private lateinit var tripSession: MapboxTripSession
     private var isActive: Boolean = false
     private val locationObserver = object : LocationObserver {
         override fun onRawLocationChanged(rawLocation: Location) {
@@ -59,8 +59,8 @@ class TripSessionActivityKt : AppCompatActivity(), OnMapReadyCallback {
                 when (isActive) {
                     true -> {
                         mapboxMap.locationComponent.isLocationComponentEnabled = false
-                        tripSession.unregisterLocationObserver(locationObserver)
-                        tripSession.stop()
+//                        tripSession.unregisterLocationObserver(locationObserver)
+//                        tripSession.stop()
                         toggleSession.text = "Start"
                         isActive = false
                     }
@@ -73,8 +73,8 @@ class TripSessionActivityKt : AppCompatActivity(), OnMapReadyCallback {
                         )
                         mapboxMap.locationComponent.cameraMode = CameraMode.TRACKING_GPS
                         mapboxMap.locationComponent.renderMode = RenderMode.GPS
-                        tripSession.registerLocationObserver(locationObserver)
-                        tripSession.start()
+//                        tripSession.registerLocationObserver(locationObserver)
+//                        tripSession.start()
                         mapboxMap.locationComponent.isLocationComponentEnabled = true
                         toggleSession.text = "Stop"
                         isActive = true
@@ -97,21 +97,26 @@ class TripSessionActivityKt : AppCompatActivity(), OnMapReadyCallback {
             .withLocale(this.inferDeviceLocale())
             .build(this)
 
-        tripSession = MapboxTripSession(
-            MapboxTripService(
-                applicationContext,
-                MapboxTripNotification(
-                    NavigationOptions.Builder(applicationContext)
-                        .distanceFormatter(formatter)
-                        .timeFormatType(TWENTY_FOUR_HOURS)
-                        .build()
-                ),
-                MapboxLogger
-            ),
-            LocationEngineProvider.getBestLocationEngine(applicationContext),
-            NAVIGATOR_POLLING_DELAY,
-            logger = MapboxLogger
-        )
+//        tripSession = MapboxTripSession(
+//            MapboxTripService(
+//                applicationContext,
+//                MapboxTripNotification(
+//                    applicationContext,
+//                    NavigationOptions.Builder()
+//                        .distanceFormatter(formatter)
+//                        .timeFormatType(TWENTY_FOUR_HOURS)
+//                        .build()
+//                ),
+//                MapboxLogger
+//            ),
+//            LocationEngineProvider.getBestLocationEngine(applicationContext),
+//            LocationEngineRequest.Builder(UPDATE_INTERVAL_IN_MILLISECONDS)
+//                .setPriority(LocationEngineRequest.PRIORITY_HIGH_ACCURACY)
+//                .setFastestInterval(FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS)
+//                .build(),
+//            NAVIGATOR_POLLING_DELAY,
+//            logger = MapboxLogger
+//        )
     }
 
     public override fun onResume() {
@@ -142,10 +147,10 @@ class TripSessionActivityKt : AppCompatActivity(), OnMapReadyCallback {
     override fun onDestroy() {
         super.onDestroy()
         mapView.onDestroy()
-        if (::tripSession.isInitialized) {
-            tripSession.unregisterLocationObserver(locationObserver)
-            tripSession.stop()
-        }
+//        if (::tripSession.isInitialized) {
+//            tripSession.unregisterLocationObserver(locationObserver)
+//            tripSession.stop()
+//        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

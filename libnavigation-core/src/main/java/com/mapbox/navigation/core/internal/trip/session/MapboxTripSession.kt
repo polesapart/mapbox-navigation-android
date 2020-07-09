@@ -58,7 +58,7 @@ import kotlinx.coroutines.withContext
  *
  * @property route should be set to start routing
  */
-class MapboxTripSession(
+internal class MapboxTripSession(
     override val tripService: TripService,
     private val locationEngine: LocationEngine,
     private val navigatorPredictionMillis: Long,

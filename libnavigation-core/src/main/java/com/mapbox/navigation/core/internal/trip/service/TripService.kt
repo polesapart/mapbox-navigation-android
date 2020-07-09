@@ -9,7 +9,7 @@ import com.mapbox.navigation.core.trip.session.TripSession
 /**
  * It's a part of [TripSession], interface provides [RouteProgress] to notification bar
  */
-interface TripService {
+internal interface TripService {
 
     /**
      * Start TripService
