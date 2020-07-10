@@ -1,6 +1,5 @@
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-android-extensions'
 apply plugin: 'kotlin-kapt'
 apply plugin: 'org.jetbrains.dokka'
 apply plugin: 'com.jaredsburrows.license'
@@ -32,7 +31,6 @@ android {
     defaultConfig {
         minSdkVersion androidVersions.minSdkVersion
         targetSdkVersion androidVersions.targetSdkVersion
-        multiDexEnabled true
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles 'proguard-rules.pro', "${rootDir}/proguard/proguard-project.pro"
 
@@ -44,27 +42,6 @@ android {
         unitTests.includeAndroidResources = true
     }
 }
-
-configurations.all
-        {
-            resolutionStrategy.eachDependency { details ->
-                if (details.requested.group == 'androidx.lifecycle') {
-                        details.useVersion "2.2.0"
-                }
-                if (details.requested.group == 'androidx.collection'
-                        && details.requested.name.contains('collection')) {
-                    details.useVersion "1.1.0"
-                }
-                if (details.requested.group == 'org.jetbrains'
-                        && details.requested.name.contains('annotations')) {
-                    details.useVersion "16.0.1"
-                }
-                if (details.requested.group == 'androidx.arch.core'
-                        && details.requested.name.contains('core-runtime')) {
-                    details.useVersion "2.1.0"
-                }
-            }
-        }
 
 dependencies {
     implementation dependenciesList.mapboxAnnotations
@@ -92,16 +69,6 @@ dependencies {
 
     testImplementation project(':libdirections-hybrid')
     testImplementation project(':libtrip-notification')
-
-    // android test
-    androidTestImplementation dependenciesList.androidXAppCompat
-    androidTestImplementation project(':libtesting-ui')
-    androidTestImplementation dependenciesList.androidXConstraintLayout
-    androidTestImplementation dependenciesList.mapboxMapSdk
-    androidTestImplementation dependenciesList.mapboxLogger
-    androidTestImplementation project(':libtrip-notification')
-    androidTestImplementation project(':libnavigation-ui')
-    androidTestImplementation dependenciesList.timber
 }
 
 apply from: "${rootDir}/gradle/track-public-apis.gradle"
