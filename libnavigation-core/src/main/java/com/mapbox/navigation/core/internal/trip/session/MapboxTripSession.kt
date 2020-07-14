@@ -33,6 +33,7 @@ import com.mapbox.navigation.utils.internal.JobControl
 import com.mapbox.navigation.utils.internal.ThreadController
 import com.mapbox.navigation.utils.internal.ifNonNull
 import com.mapbox.navigator.NavigationStatus
+import com.mapbox.navigator.RouteState
 import java.util.Date
 import java.util.concurrent.CopyOnWriteArraySet
 import kotlinx.coroutines.Job
@@ -40,6 +41,8 @@ import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 // todo make internal
@@ -79,11 +82,19 @@ class MapboxTripSession(
             .build()
     }
 
+    private val mutex = Mutex()
+
     override var route: DirectionsRoute? = null
         set(value) {
             field = value
             ioJobController.scope.launch {
-                navigator.setRoute(value)
+                mutex.withLock {
+                    val status = navigator.setRoute(value)
+                    // Could NN send OFF_ROUTE as a result of setRoute? If not (NN only sends INVALID or INITIALIZED), isOffRoute = false should be safe
+                    // Would that be the case with spamming OFF_ROUTE approach? If so, isOffRoute will be always true which may cause issues
+                    // From a NN point, is it safe to assume that setting a new route means never OFF_ROUTE?
+                    isOffRoute = status.routeState == RouteState.OFF_ROUTE
+                }
             }
         }
 
@@ -112,10 +123,10 @@ class MapboxTripSession(
 
     private var isOffRoute: Boolean = false
         set(value) {
-            field = value
-            if (route == null) {
+            if (field == value) {
                 return
             }
+            field = value
             offRouteObservers.forEach { it.onOffRouteStateChanged(value) }
         }
 
@@ -425,7 +436,9 @@ class MapboxTripSession(
             launch {
                 updateEnhancedLocation(status.enhancedLocation, status.keyPoints)
                 updateRouteProgress(status.routeProgress)
-                isOffRoute = status.offRoute
+                mutex.withLock {
+                    isOffRoute = status.offRoute
+                }
             }
         }
     }
